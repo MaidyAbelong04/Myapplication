@@ -9,10 +9,9 @@ import cv2
 # ===============================
 st.set_page_config(page_title="AI Object Detector", layout="wide")
 
-st.title("🎥 Live Object Detection & Tracing (YOLOv8)")
-st.write("Real-time object detection using camera + AI model")
-
-st.info("📷 If black screen appears: allow camera permission or try another network (mobile hotspot).")
+# ORIGINAL TITLE (UNCHANGED)
+st.title("🎥 Live Object Detection & Tracing")
+st.write("Point your camera at objects to identify them in real-time.")
 
 # ===============================
 # LOAD MODEL
@@ -23,23 +22,22 @@ def load_model():
 
 model = load_model()
 
-st.success("✅ YOLO Model Loaded")
-
 # ===============================
-# CONFIDENCE
+# SIDEBAR
 # ===============================
+st.sidebar.header("Settings")
 conf_threshold = st.sidebar.slider("Confidence Threshold", 0.0, 1.0, 0.25)
 
 # ===============================
-# VIDEO CALLBACK
+# VIDEO PROCESSING
 # ===============================
 def video_frame_callback(frame):
     img = frame.to_ndarray(format="bgr24")
 
-    # Mirror camera
+    # Mirror effect
     img = cv2.flip(img, 1)
 
-    # YOLO detection
+    # YOLO prediction
     results = model.predict(img, conf=conf_threshold, verbose=False)
 
     object_count = 0
@@ -60,7 +58,7 @@ def video_frame_callback(frame):
             # Draw box
             cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
 
-            # Label text
+            # Label
             cv2.putText(
                 img,
                 label,
@@ -71,10 +69,10 @@ def video_frame_callback(frame):
                 2
             )
 
-    # Object counter
+    # Counter display
     cv2.putText(
         img,
-        f"Objects Detected: {object_count}",
+        f"Objects: {object_count}",
         (20, 40),
         cv2.FONT_HERSHEY_SIMPLEX,
         1,
@@ -85,24 +83,13 @@ def video_frame_callback(frame):
     return av.VideoFrame.from_ndarray(img, format="bgr24")
 
 # ===============================
-# ULTRA STABLE WEBRTC CONFIG
+# WEBRTC CONFIG (STABLE VERSION)
 # ===============================
 RTC_CONFIGURATION = {
     "iceServers": [
-        # STUN servers (basic connection)
         {"urls": ["stun:stun.l.google.com:19302"]},
         {"urls": ["stun:stun1.l.google.com:19302"]},
         {"urls": ["stun:stun2.l.google.com:19302"]},
-
-        # TURN server (fallback relay - FIX FOR BLACK SCREEN)
-        {
-            "urls": [
-                "turn:openrelay.metered.ca:80",
-                "turn:openrelay.metered.ca:443"
-            ],
-            "username": "openrelayproject",
-            "credential": "openrelayproject"
-        }
     ]
 }
 
@@ -110,7 +97,7 @@ RTC_CONFIGURATION = {
 # STREAMLIT WEBRTC
 # ===============================
 webrtc_streamer(
-    key="ultra-stable-live-camera",
+    key="original-live-camera",
     video_frame_callback=video_frame_callback,
     rtc_configuration=RTC_CONFIGURATION,
     media_stream_constraints={
@@ -120,7 +107,4 @@ webrtc_streamer(
     async_processing=True,
 )
 
-# ===============================
-# DEBUG INFO
-# ===============================
-st.caption("✔ If camera does not appear, check browser permissions (🔒 icon) and refresh page.")
+st.caption("Allow camera permission in browser if black screen appears.")
