@@ -9,9 +9,11 @@ import cv2
 # ===============================
 st.set_page_config(page_title="AI Object Detector", layout="wide")
 
-# ORIGINAL TITLE (UNCHANGED)
+# ORIGINAL TITLE (HINDI BINAGO)
 st.title("🎥 Live Object Detection & Tracing")
-st.write("Point your camera at objects to identify them in real-time.")
+st.write("Real-time object detection using YOLOv8 + Streamlit Cloud camera")
+
+st.info("📷 If black screen appears: allow camera permission + try Chrome browser")
 
 # ===============================
 # LOAD MODEL
@@ -22,19 +24,20 @@ def load_model():
 
 model = load_model()
 
+st.success("✅ Model Loaded Successfully")
+
 # ===============================
-# SIDEBAR
+# SIDEBAR SETTINGS
 # ===============================
-st.sidebar.header("Settings")
 conf_threshold = st.sidebar.slider("Confidence Threshold", 0.0, 1.0, 0.25)
 
 # ===============================
-# VIDEO PROCESSING
+# VIDEO CALLBACK FUNCTION
 # ===============================
 def video_frame_callback(frame):
     img = frame.to_ndarray(format="bgr24")
 
-    # Mirror effect
+    # Mirror camera
     img = cv2.flip(img, 1)
 
     # YOLO prediction
@@ -69,7 +72,7 @@ def video_frame_callback(frame):
                 2
             )
 
-    # Counter display
+    # Object counter display
     cv2.putText(
         img,
         f"Objects: {object_count}",
@@ -83,28 +86,30 @@ def video_frame_callback(frame):
     return av.VideoFrame.from_ndarray(img, format="bgr24")
 
 # ===============================
-# WEBRTC CONFIG (STABLE VERSION)
+# CLOUD-STABLE WEBRTC CONFIG
 # ===============================
 RTC_CONFIGURATION = {
     "iceServers": [
-        {"urls": ["stun:stun.l.google.com:19302"]},
-        {"urls": ["stun:stun1.l.google.com:19302"]},
-        {"urls": ["stun:stun2.l.google.com:19302"]},
+        # STUN ONLY (most stable for Streamlit Cloud)
+        {"urls": ["stun:stun.l.google.com:19302"]}
     ]
 }
 
 # ===============================
-# STREAMLIT WEBRTC
+# WEBRTC STREAM
 # ===============================
 webrtc_streamer(
-    key="original-live-camera",
+    key="final-cloud-live",
     video_frame_callback=video_frame_callback,
     rtc_configuration=RTC_CONFIGURATION,
     media_stream_constraints={
-        "video": True,
+        "video": {"facingMode": "user"},
         "audio": False
     },
     async_processing=True,
 )
 
-st.caption("Allow camera permission in browser if black screen appears.")
+# ===============================
+# NOTE
+# ===============================
+st.caption("✔ Allow camera permission in browser. If black screen persists, switch network or use Chrome.")
