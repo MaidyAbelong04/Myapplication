@@ -1,4 +1,7 @@
 streamlit
+streamlit-webrtc
 ultralytics
 opencv-python-headless
 numpy
+av
+tornado
