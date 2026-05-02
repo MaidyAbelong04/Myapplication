@@ -18,7 +18,7 @@ st.title("🎥 Live Object Detection & Tracing")
 
 # Sidebar Settings
 st.sidebar.header("Settings")
-conf_threshold = st.sidebar.slider("Confidence Threshold", 0.0, 1.0, 0.25)
+conf_threshold = st.sidebar.slider("Confidence Threshold", 0.0, 1.0, 0.20)
 
 # STEP 3: Video frame callback function
 def video_frame_callback(frame):
