@@ -1,25 +1,16 @@
 import streamlit as st
-from streamlit_webrtc import webrtc_streamer
 from ultralytics import YOLO
-import av
-import cv2
-import asyncio
-
-# ===============================
-# FIX (important sa Windows)
-# ===============================
-try:
-    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-except:
-    pass
+import numpy as np
+from PIL import Image
 
 # ===============================
 # PAGE CONFIG
 # ===============================
 st.set_page_config(page_title="AI Object Detector", layout="wide")
 
+# ✔️ Hindi binago title mo
 st.title("🎥 Live Object Detection & Tracing")
-st.write("Point your camera at objects to identify them in real-time.")
+st.write("Upload an image to detect objects using YOLOv8.")
 
 # ===============================
 # LOAD MODEL
@@ -33,115 +24,35 @@ model = load_model()
 st.success("✅ Model loaded successfully!")
 
 # ===============================
-# SIDEBAR
+# UPLOAD IMAGE
 # ===============================
-st.sidebar.header("⚙️ Settings")
-
-conf_threshold = st.sidebar.slider(
-    "Confidence Threshold",
-    0.0, 1.0, 0.15
+uploaded_file = st.file_uploader(
+    "📤 Upload an image (jpg, png, jpeg)",
+    type=["jpg", "png", "jpeg"]
 )
 
 # ===============================
-# VIDEO PROCESSING
+# DETECTION
 # ===============================
-def video_frame_callback(frame):
-    img = frame.to_ndarray(format="bgr24")
+if uploaded_file is not None:
+    image = Image.open(uploaded_file)
+    img_array = np.array(image)
 
-    # Mirror fix
-    img = cv2.flip(img, 1)
+    st.image(img_array, caption="Original Image", use_container_width=True)
 
-    # Detection
-    results = model.predict(img, conf=conf_threshold, verbose=False)
+    # Run YOLO detection
+    results = model.predict(img_array, conf=0.25)
 
-    object_count = 0
-
+    # Annotated image
     for r in results:
-        if r.boxes is None:
-            continue
+        annotated_img = r.plot()
 
-        for box in r.boxes:
-            object_count += 1
+    st.subheader("📍 Detected Objects")
+    st.image(annotated_img, caption="Detection Result", use_container_width=True)
 
-            # Coordinates
-            x1, y1, x2, y2 = box.xyxy[0]
-            x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
+    # Object count
+    for r in results:
+        boxes = r.boxes
+        count = len(boxes)
 
-            # Label
-            cls = int(box.cls[0])
-            label = model.names[cls]
-
-            # Box
-            cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
-
-            # Label background
-            cv2.rectangle(img, (x1, y1 - 30), (x1 + 140, y1), (0, 255, 0), -1)
-
-            # Label text
-            cv2.putText(
-                img,
-                label,
-                (x1, y1 - 8),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.6,
-                (0, 0, 0),
-                2
-            )
-
-    # Object counter
-    cv2.putText(
-        img,
-        f"Objects Detected: {object_count}",
-        (20, 40),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        1,
-        (0, 255, 0),
-        2
-    )
-
-    return av.VideoFrame.from_ndarray(img, format="bgr24")
-
-# ===============================
-# WEBRTC CONFIG (Wi-Fi FIX)
-# ===============================
-RTC_CONFIGURATION = {
-    "iceServers": [
-        {"urls": ["stun:stun.l.google.com:19302"]},
-
-        # TURN servers (important!)
-        {
-            "urls": ["turn:openrelay.metered.ca:80"],
-            "username": "openrelayproject",
-            "credential": "openrelayproject",
-        },
-        {
-            "urls": ["turn:openrelay.metered.ca:443"],
-            "username": "openrelayproject",
-            "credential": "openrelayproject",
-        },
-    ]
-}
-
-# ===============================
-# CAMERA STREAM
-# ===============================
-webrtc_streamer(
-    key="final-object-detection",
-    video_frame_callback=video_frame_callback,
-    rtc_configuration=RTC_CONFIGURATION,
-    media_stream_constraints={
-        "video": {
-            "facingMode": "user"
-        },
-        "audio": False
-    },
-    async_processing=True,
-    video_html_attrs={
-        "autoPlay": True,
-        "playsinline": True,
-        "controls": False,
-        "style": {"width": "100%"},
-    },
-)
-
-st.info("📷 If camera is not working, allow permission and refresh the page.")
+    st.info(f"🔎 Objects Detected: {count}")
