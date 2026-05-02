@@ -57,5 +57,3 @@ webrtc_streamer(
     async_processing=True,
 )
 
-st.divider()
-st.info("💡 Tip: Kung itim pa rin ang screen sa Wi-Fi, i-refresh ang page at i-off ang anumang VPN.")
