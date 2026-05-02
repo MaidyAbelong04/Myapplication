@@ -3,6 +3,15 @@ from streamlit_webrtc import webrtc_streamer
 from ultralytics import YOLO
 import av
 import cv2
+import asyncio
+
+# ===============================
+# FIX (important sa Windows)
+# ===============================
+try:
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+except:
+    pass
 
 # ===============================
 # PAGE CONFIG
@@ -17,30 +26,32 @@ st.write("Point your camera at objects to identify them in real-time.")
 # ===============================
 @st.cache_resource
 def load_model():
-    return YOLO("yolov8n.pt")  # auto-download if not present
+    return YOLO("yolov8n.pt")  # auto-download
 
 model = load_model()
 
+st.success("✅ Model loaded successfully!")
+
 # ===============================
-# SIDEBAR SETTINGS
+# SIDEBAR
 # ===============================
 st.sidebar.header("⚙️ Settings")
 
 conf_threshold = st.sidebar.slider(
     "Confidence Threshold",
-    0.0, 1.0, 0.15  # mas mababa para mas responsive
+    0.0, 1.0, 0.15
 )
 
 # ===============================
-# VIDEO PROCESSING FUNCTION
+# VIDEO PROCESSING
 # ===============================
 def video_frame_callback(frame):
     img = frame.to_ndarray(format="bgr24")
 
-    # Mirror effect fix
+    # Mirror fix
     img = cv2.flip(img, 1)
 
-    # YOLO Detection
+    # Detection
     results = model.predict(img, conf=conf_threshold, verbose=False)
 
     object_count = 0
@@ -60,11 +71,11 @@ def video_frame_callback(frame):
             cls = int(box.cls[0])
             label = model.names[cls]
 
-            # Draw bounding box
+            # Box
             cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
 
             # Label background
-            cv2.rectangle(img, (x1, y1 - 30), (x1 + 120, y1), (0, 255, 0), -1)
+            cv2.rectangle(img, (x1, y1 - 30), (x1 + 140, y1), (0, 255, 0), -1)
 
             # Label text
             cv2.putText(
@@ -77,7 +88,7 @@ def video_frame_callback(frame):
                 2
             )
 
-    # Display object count
+    # Object counter
     cv2.putText(
         img,
         f"Objects Detected: {object_count}",
@@ -91,13 +102,13 @@ def video_frame_callback(frame):
     return av.VideoFrame.from_ndarray(img, format="bgr24")
 
 # ===============================
-# WEBRTC CONFIG (FIX FOR WIFI)
+# WEBRTC CONFIG (Wi-Fi FIX)
 # ===============================
 RTC_CONFIGURATION = {
     "iceServers": [
         {"urls": ["stun:stun.l.google.com:19302"]},
 
-        # TURN servers (IMPORTANT sa Wi-Fi)
+        # TURN servers (important!)
         {
             "urls": ["turn:openrelay.metered.ca:80"],
             "username": "openrelayproject",
@@ -112,20 +123,25 @@ RTC_CONFIGURATION = {
 }
 
 # ===============================
-# WEBRTC STREAM
+# CAMERA STREAM
 # ===============================
 webrtc_streamer(
-    key="object-detection-final",
+    key="final-object-detection",
     video_frame_callback=video_frame_callback,
     rtc_configuration=RTC_CONFIGURATION,
     media_stream_constraints={
-        "video": True,
+        "video": {
+            "facingMode": "user"
+        },
         "audio": False
     },
     async_processing=True,
     video_html_attrs={
-        "style": {"width": "100%"},
         "autoPlay": True,
-        "playsinline": True
+        "playsinline": True,
+        "controls": False,
+        "style": {"width": "100%"},
     },
 )
+
+st.info("📷 If camera is not working, allow permission and refresh the page.")
