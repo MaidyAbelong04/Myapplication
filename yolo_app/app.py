@@ -14,54 +14,46 @@ def load_model():
 
 model = load_model()
 
-# UI Header
 st.title("🎥 Live Object Detection & Tracing")
-st.write("Current Status: Connecting via WebRTC...")
 
 # Sidebar Settings
 st.sidebar.header("Settings")
 conf_threshold = st.sidebar.slider("Confidence Threshold", 0.0, 1.0, 0.25)
 
-# STEP 3: Video frame callback
+# STEP 3: Video frame callback function
 def video_frame_callback(frame):
     img = frame.to_ndarray(format="bgr24")
     img = cv2.flip(img, 1)
 
+    # YOLOv8 tracking
     results = model.track(img, persist=True, conf=conf_threshold, verbose=False)
-    annotated_frame = results[0].plot()
-
-    if results[0].boxes is not None:
-        count = len(results[0].boxes)
-        cv2.putText(annotated_frame, f"Objects Count: {count}", (20, 50), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+    
+    # Siguraduhing may detection bago mag-plot
+    if results and len(results) > 0:
+        annotated_frame = results[0].plot()
+    else:
+        annotated_frame = img
 
     return av.VideoFrame.from_ndarray(annotated_frame, format="bgr24")
 
-# STEP 4: The "Wi-Fi Fix" RTC Configuration
-# Dinagdagan natin ng kilalang public STUN servers para sa redundancy
-RTC_CONFIGURATION = {
-    "iceServers": [
-        {"urls": ["stun:stun.l.google.com:19302"]},
-        {"urls": ["stun:stun1.l.google.com:19302"]},
-        {"urls": ["stun:stun2.l.google.com:19302"]},
-        {"urls": ["stun:stun3.l.google.com:19302"]},
-        {"urls": ["stun:stun4.l.google.com:19302"]},
-        {"urls": ["stun:global.stun.twilio.com:3478"]} # Dagdag na Twilio stun server
-    ]
-}
-
+# STEP 4: WebRTC Streamer - Direct Dictionary Config (WiFi Stable)
+# Inalis natin ang anumang extra classes para maiwasan ang TypeError
 webrtc_streamer(
-    key="wifi-fix-streamer",
+    key="object-detection-final",
     video_frame_callback=video_frame_callback,
-    rtc_configuration=RTC_CONFIGURATION,
+    rtc_configuration={
+        "iceServers": [
+            {"urls": ["stun:stun.l.google.com:19302"]},
+            {"urls": ["stun:stun1.l.google.com:19302"]},
+            {"urls": ["stun:stun2.l.google.com:19302"]}
+        ]
+    },
     media_stream_constraints={
         "video": True,
         "audio": False
     },
     async_processing=True,
-    # Mahalaga ito para sa Wi-Fi connection handshake
-    senders_buffer_size=1, 
 )
 
 st.divider()
-st.warning("Kung naka-Wi-Fi at ayaw pa rin: I-off ang Firewall ng Windows o subukang gamitin ang Google Chrome 'Incognito Mode'.")
+st.info("Kung ayaw sa Wi-Fi: 1. I-refresh ang page. 2. Gamitin ang Incognito Mode. 3. I-off ang VPN kung meron.")
