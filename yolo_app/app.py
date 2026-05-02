@@ -22,7 +22,7 @@ st.write("Point your camera at objects to identify them in real-time.")
 # Sidebar Settings para sa Confidence Threshold
 st.sidebar.header("Settings")
 # Ginawa nating 0.25 ang default para mas sensitive sa objects
-conf_threshold = st.sidebar.slider("Confidence Threshold", 0.0, 1.0, 0.25)
+conf_threshold = st.sidebar.slider("Confidence Threshold", 0.0, 1.0, 0.20)
 
 # STEP 3: Video frame callback function
 def video_frame_callback(frame):
