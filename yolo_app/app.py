@@ -4,70 +4,118 @@ from ultralytics import YOLO
 import av
 import cv2
 
-# STEP 1: Page Configuration
+# ===============================
+# PAGE CONFIG
+# ===============================
 st.set_page_config(page_title="AI Object Detector", layout="wide")
 
-# STEP 2: Load Model (YOLOv8 Nano)
-@st.cache_resource
-def load_model():
-    # Gagamit ng yolov8n.pt para mabilis mag-load at mag-detect
-    return YOLO("yolov8n.pt")
-
-model = load_model()
-
-# PAREHAS NA TITLE (HINDI BINAGO)
 st.title("🎥 Live Object Detection & Tracing")
 st.write("Point your camera at objects to identify them in real-time.")
 
-# Sidebar Settings
-st.sidebar.header("Settings")
-# Naka-set sa 0.20 para mas mabilis lumabas ang mga labels
-conf_threshold = st.sidebar.slider("Confidence Threshold", 0.0, 1.0, 0.20)
+# ===============================
+# LOAD MODEL
+# ===============================
+@st.cache_resource
+def load_model():
+    return YOLO("yolov8n.pt")  # auto-download if not present
 
-# STEP 3: Detection Logic (Manual Plotting para sigurado ang labels)
+model = load_model()
+
+# ===============================
+# SIDEBAR SETTINGS
+# ===============================
+st.sidebar.header("⚙️ Settings")
+
+conf_threshold = st.sidebar.slider(
+    "Confidence Threshold",
+    0.0, 1.0, 0.15  # mas mababa para mas responsive
+)
+
+# ===============================
+# VIDEO PROCESSING FUNCTION
+# ===============================
 def video_frame_callback(frame):
     img = frame.to_ndarray(format="bgr24")
-    
-    # Mirror Effect fix
+
+    # Mirror effect fix
     img = cv2.flip(img, 1)
 
     # YOLO Detection
     results = model.predict(img, conf=conf_threshold, verbose=False)
-    
-    # MANUAL DRAWING: Ito ang sigurado na magpapakita ng boxes at labels
+
+    object_count = 0
+
     for r in results:
-        boxes = r.boxes
-        for box in boxes:
-            # Kunin ang coordinates ng box
+        if r.boxes is None:
+            continue
+
+        for box in r.boxes:
+            object_count += 1
+
+            # Coordinates
             x1, y1, x2, y2 = box.xyxy[0]
             x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
-            
-            # Drawing ng Green Box
-            cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
-            
-            # Pagkuha at pag-sulat ng label (person, phone, etc.)
+
+            # Label
             cls = int(box.cls[0])
             label = model.names[cls]
-            cv2.putText(img, label, (x1, y1 - 10), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+
+            # Draw bounding box
+            cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
+
+            # Label background
+            cv2.rectangle(img, (x1, y1 - 30), (x1 + 120, y1), (0, 255, 0), -1)
+
+            # Label text
+            cv2.putText(
+                img,
+                label,
+                (x1, y1 - 8),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.6,
+                (0, 0, 0),
+                2
+            )
+
+    # Display object count
+    cv2.putText(
+        img,
+        f"Objects Detected: {object_count}",
+        (20, 40),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        1,
+        (0, 255, 0),
+        2
+    )
 
     return av.VideoFrame.from_ndarray(img, format="bgr24")
 
-# STEP 4: UNIVERSAL WEBRTC CONFIG (Fix para sa Wi-Fi at Data)
-# Gagamit ng multiple servers para malusutan ang firewalls
+# ===============================
+# WEBRTC CONFIG (FIX FOR WIFI)
+# ===============================
 RTC_CONFIGURATION = {
     "iceServers": [
         {"urls": ["stun:stun.l.google.com:19302"]},
-        {"urls": ["stun:stun1.l.google.com:19302"]},
-        {"urls": ["stun:stun2.l.google.com:19302"]},
-        {"urls": ["stun:stun3.l.google.com:19302"]},
-        {"urls": ["stun:stun4.l.google.com:19302"]},
-        {"urls": ["stun:global.stun.twilio.com:3478"]}
+
+        # TURN servers (IMPORTANT sa Wi-Fi)
+        {
+            "urls": ["turn:openrelay.metered.ca:80"],
+            "username": "openrelayproject",
+            "credential": "openrelayproject",
+        },
+        {
+            "urls": ["turn:openrelay.metered.ca:443"],
+            "username": "openrelayproject",
+            "credential": "openrelayproject",
+        },
     ]
 }
 
+# ===============================
+# WEBRTC STREAM
+# ===============================
 webrtc_streamer(
-    key="universal-detection-v3",
+    key="object-detection-final",
     video_frame_callback=video_frame_callback,
     rtc_configuration=RTC_CONFIGURATION,
     media_stream_constraints={
@@ -75,11 +123,9 @@ webrtc_streamer(
         "audio": False
     },
     async_processing=True,
-    # Nakakatulong ito para hindi mag-black screen sa mahinang Wi-Fi
     video_html_attrs={
         "style": {"width": "100%"},
-        "controls": False,
         "autoPlay": True,
+        "playsinline": True
     },
 )
-
